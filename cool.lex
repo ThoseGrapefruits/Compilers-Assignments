@@ -3,19 +3,41 @@
  */
 
 import java_cup.runtime.Symbol;
+import java.util.Deque;
+import java.util.ArrayDeque;
 
 class Yytoken {
     int id;
+    String value;
 
     Yytoken(int id) {
-        this.id=id;
+        this.id = id;
+    }
+
+    Yytoken(int id, String value) {
+        this.id = id;
+        this.value = value;
     }
 } 
 
 %%
 
 %state CLASS
-%state STR_CONST
+%state CLASS_DEC
+%state COMMENT
+%state EXPR
+%state EXPR_STRING
+%state FEATURE
+%state FEATURE_DEC
+%state FORMAL
+
+%char  /* int yychar; */
+%line  /* int yyline; */
+
+\DIGIT = [0-9]
+\ID = [a-z]\w*
+\TYPE = [A-Z]\w*
+\FORMAL = \ID\s+:\s+\TYPE
 
 %{
 
@@ -28,7 +50,10 @@ class Yytoken {
     static int MAX_STR_CONST = 1025;
 
     // For assembling string constants
-    StringBuffer string_buf = new StringBuffer();
+    StringBuilder sb = new StringBuilder();
+
+    // Serves as a stack of braces, parentheses, etc.
+    Deque<String> nesting = new ArrayDeque<>();
 
     private int curr_lineno = 1;
     int get_curr_lineno() {
@@ -44,6 +69,16 @@ class Yytoken {
     AbstractSymbol curr_filename() {
 	return filename;
     }
+
+    private int last_state;
+
+    private void transition(int state) {
+        System.out.printf("Transitioning to state %s \n", state);
+        if (yy_lexical_state != state) {
+            last_state = yy_lexical_state;
+            yybegin(state);
+        }
+    }
 %}
 
 %init{
@@ -52,29 +87,20 @@ class Yytoken {
  *  class constructor, all the extra initialization you want to do should
  *  go here.  Don't remove or modify anything that was there initially. */
 
-    // empty for now
+    last_state = yy_lexical_state;
+
 %init}
 
 %eofval{
 
-/*  Stuff enclosed in %eofval{ %eofval} specifies java code that is
- *  executed when end-of-file is reached.  If you use multiple lexical
- *  states and want to do something special if an EOF is encountered in
- *  one of those states, place your code in the switch statement.
- *  Ultimately, you should return the EOF symbol, or your lexer won't
- *  work.  */
-
     switch(yy_lexical_state) {
-    case YYINITIAL:
-	/* nothing special to do in the initial state */
-	break;
-	/* If necessary, add code for other states here, e.g:
-	   case COMMENT:
-	   ...
-	   break;
-	*/
+        case YYINITIAL: // Expected
+            break;
+        default: // If in any other state, then something was left unclosed
+            return new Symbol(TokenConstants.error);
     }
     return new Symbol(TokenConstants.EOF);
+
 %eofval}
 
 %class CoolLexer
@@ -82,7 +108,50 @@ class Yytoken {
 
 %%
 
-<YYINITIAL>"=>"	{
+<YYINITIAL,CLASS,COMMENT>" \n\f\r\t\v" {
+    // Eat whitespace where relevant
+    return null;
+}
+
+"(*" {
+    transition(COMMENT);
+    nesting.push("(*");
+}
+
+<COMMENT>"*)" {
+    String last_open = nesting.pop();
+    if ("(*".equals(last_open)) {
+        if ("(*".equals(nesting.peek())) {
+            // Still in a comment, don't transition state
+        }
+        else { // No longer in a comment, transition state
+            transition(last_state);
+        }
+    } else {
+        // In comment without open comment in `nesting`, something's fishy.
+        return new Symbol(TokenConstants.error);
+    }
+}
+
+<COMMENT>. {
+    // Ignore anything in a comment
+    System.out.println("Found comment content!");
+}
+
+<YYINITIAL>class {
+    transition(CLASS_DEC);
+    return new Symbol(TokenConstants.CLASS);
+}
+
+<CLASS_DEC>inherits {
+    return new Symbol(TokenConstants.INHERITS);
+}
+
+<CLASS_DEC>\TYPE {
+    return new Symbol(TokenConstants.TYPEID);
+}
+
+<YYINITIAL>"=>" {
     /* Sample lexical rule for "=>" arrow.
        Further lexical rules should be defined
        here, after the last %% separator */
@@ -92,5 +161,6 @@ class Yytoken {
 . { /* This rule should be the very last
        in your lexical specification and will match match everything not
        matched by other lexical rules. */
+    System.out.printf("State: %s", yy_lexical_state);
     System.err.println("LEXER BUG - UNMATCHED: " + yytext());
 }

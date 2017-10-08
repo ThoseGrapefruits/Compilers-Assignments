@@ -2,11 +2,17 @@
  *  The scanner definition for COOL.
  */
 import java_cup.runtime.Symbol;
+import java.util.Deque;
+import java.util.ArrayDeque;
 class Yytoken {
     int id;
-    String name;
-    Yytoken(int value) {
-        this.value=value;
+    String value;
+    Yytoken(int id) {
+        this.id = id;
+    }
+    Yytoken(int id, String value) {
+        this.id = id;
+        this.value = value;
     }
 } 
 
@@ -29,7 +35,9 @@ class CoolLexer implements java_cup.runtime.Scanner {
     // Max size of string constants
     static int MAX_STR_CONST = 1025;
     // For assembling string constants
-    StringBuffer string_buf = new StringBuffer();
+    StringBuilder sb = new StringBuilder();
+    // Serves as a stack of braces, parentheses, etc.
+    Deque<String> nesting = new ArrayDeque<>();
     private int curr_lineno = 1;
     int get_curr_lineno() {
 	return curr_lineno;
@@ -41,12 +49,22 @@ class CoolLexer implements java_cup.runtime.Scanner {
     AbstractSymbol curr_filename() {
 	return filename;
     }
+    private int last_state;
+    private void transition(int state) {
+        System.out.printf("Transitioning to state %s \n", state);
+        if (yy_lexical_state != state) {
+            last_state = yy_lexical_state;
+            yybegin(state);
+        }
+    }
 	private java.io.BufferedReader yy_reader;
 	private int yy_buffer_index;
 	private int yy_buffer_read;
 	private int yy_buffer_start;
 	private int yy_buffer_end;
 	private char yy_buffer[];
+	private int yychar;
+	private int yyline;
 	private boolean yy_at_bol;
 	private int yy_lexical_state;
 
@@ -72,23 +90,37 @@ class CoolLexer implements java_cup.runtime.Scanner {
 		yy_buffer_index = 0;
 		yy_buffer_start = 0;
 		yy_buffer_end = 0;
+		yychar = 0;
+		yyline = 0;
 		yy_at_bol = true;
 		yy_lexical_state = YYINITIAL;
 
 /*  Stuff enclosed in %init{ %init} is copied verbatim to the lexer
  *  class constructor, all the extra initialization you want to do should
  *  go here.  Don't remove or modify anything that was there initially. */
-    // empty for now
+    last_state = yy_lexical_state;
 	}
 
 	private boolean yy_eof_done = false;
+	private final int FEATURE_DEC = 7;
+	private final int FEATURE = 6;
 	private final int YYINITIAL = 0;
-	private final int STR_CONST = 2;
+	private final int EXPR = 4;
+	private final int EXPR_STRING = 5;
+	private final int FORMAL = 8;
+	private final int COMMENT = 3;
+	private final int CLASS_DEC = 2;
 	private final int CLASS = 1;
 	private final int yy_state_dtrans[] = {
 		0,
-		5,
-		5
+		41,
+		42,
+		40,
+		43,
+		43,
+		43,
+		43,
+		43
 	};
 	private void yybegin (int state) {
 		yy_lexical_state = state;
@@ -148,6 +180,18 @@ class CoolLexer implements java_cup.runtime.Scanner {
 	}
 	private boolean yy_last_was_cr=false;
 	private void yy_mark_start () {
+		int i;
+		for (i = yy_buffer_start; i < yy_buffer_index; ++i) {
+			if ('\n' == yy_buffer[i] && !yy_last_was_cr) {
+				++yyline;
+			}
+			if ('\r' == yy_buffer[i]) {
+				++yyline;
+				yy_last_was_cr=true;
+			} else yy_last_was_cr=false;
+		}
+		yychar = yychar
+			+ yy_buffer_index - yy_buffer_start;
 		yy_buffer_start = yy_buffer_index;
 	}
 	private void yy_mark_end () {
@@ -234,16 +278,61 @@ class CoolLexer implements java_cup.runtime.Scanner {
 		/* 2 */ YY_NO_ANCHOR,
 		/* 3 */ YY_NO_ANCHOR,
 		/* 4 */ YY_NO_ANCHOR,
-		/* 5 */ YY_NOT_ACCEPT
+		/* 5 */ YY_NO_ANCHOR,
+		/* 6 */ YY_NO_ANCHOR,
+		/* 7 */ YY_NO_ANCHOR,
+		/* 8 */ YY_NO_ANCHOR,
+		/* 9 */ YY_NO_ANCHOR,
+		/* 10 */ YY_NO_ANCHOR,
+		/* 11 */ YY_NOT_ACCEPT,
+		/* 12 */ YY_NO_ANCHOR,
+		/* 13 */ YY_NO_ANCHOR,
+		/* 14 */ YY_NOT_ACCEPT,
+		/* 15 */ YY_NO_ANCHOR,
+		/* 16 */ YY_NO_ANCHOR,
+		/* 17 */ YY_NOT_ACCEPT,
+		/* 18 */ YY_NO_ANCHOR,
+		/* 19 */ YY_NO_ANCHOR,
+		/* 20 */ YY_NOT_ACCEPT,
+		/* 21 */ YY_NO_ANCHOR,
+		/* 22 */ YY_NOT_ACCEPT,
+		/* 23 */ YY_NO_ANCHOR,
+		/* 24 */ YY_NOT_ACCEPT,
+		/* 25 */ YY_NO_ANCHOR,
+		/* 26 */ YY_NOT_ACCEPT,
+		/* 27 */ YY_NOT_ACCEPT,
+		/* 28 */ YY_NOT_ACCEPT,
+		/* 29 */ YY_NOT_ACCEPT,
+		/* 30 */ YY_NOT_ACCEPT,
+		/* 31 */ YY_NOT_ACCEPT,
+		/* 32 */ YY_NOT_ACCEPT,
+		/* 33 */ YY_NOT_ACCEPT,
+		/* 34 */ YY_NOT_ACCEPT,
+		/* 35 */ YY_NOT_ACCEPT,
+		/* 36 */ YY_NOT_ACCEPT,
+		/* 37 */ YY_NOT_ACCEPT,
+		/* 38 */ YY_NOT_ACCEPT,
+		/* 39 */ YY_NOT_ACCEPT,
+		/* 40 */ YY_NOT_ACCEPT,
+		/* 41 */ YY_NOT_ACCEPT,
+		/* 42 */ YY_NOT_ACCEPT,
+		/* 43 */ YY_NOT_ACCEPT
 	};
 	private int yy_cmap[] = unpackFromString(1,130,
-"3:10,0,3:2,0,3:47,1,2,3:65,4:2")[0];
+"11:10,0,11:2,0,11:18,1,11:7,8,10,9,11:18,23,24,11:6,22,11:10,21,11:3,19,11:" +
+"4,20,11:2,2,11:4,14,11,12,11,18,4,11,17,16,11:2,13,11,3,11:3,5,15,6,11,7,11" +
+":9,25:2")[0];
 
-	private int yy_rmap[] = unpackFromString(1,6,
-"0,1,2:3,3")[0];
+	private int yy_rmap[] = unpackFromString(1,44,
+"0,1,2:7,1,2,3,2:2,4,5:2,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,2" +
+"4,25,26,27,28,29,30,31,32")[0];
 
-	private int yy_nxt[][] = unpackFromString(4,5,
-"-1,1,4:2,2,-1:2,3,-1:8,4:3,2");
+	private int yy_nxt[][] = unpackFromString(33,26,
+"-1,1,12:6,15,12:3,18,12:10,21,12,2,-1:2,11,-1:52,17,-1:36,20,-1:20,3,-1:18," +
+"22,-1:36,14,-1:22,10,-1:30,24,-1:34,4,-1:5,26,-1:24,32,-1:37,5,-1:30,33,-1:" +
+"7,27,-1:28,28,-1:22,29,-1:29,30,-1:21,31,-1:30,6,-1:35,34,-1:29,35,-1:22,36" +
+",-1:29,7,-1:8,37,-1:36,38,-1:15,39,-1:34,8,-1:11,9,13:6,16,19,13:15,2,-1,1," +
+"12:6,15,12:16,2,-1,12:7,15,12:7,23,12:2,25,12:5,2,-1,12:7,15,12:16,2");
 
 	public java_cup.runtime.Symbol next_token ()
 		throws java.io.IOException {
@@ -268,21 +357,11 @@ class CoolLexer implements java_cup.runtime.Scanner {
 			yy_next_state = yy_nxt[yy_rmap[yy_state]][yy_cmap[yy_lookahead]];
 			if (YY_EOF == yy_lookahead && true == yy_initial) {
 
-/*  Stuff enclosed in %eofval{ %eofval} specifies java code that is
- *  executed when end-of-file is reached.  If you use multiple lexical
- *  states and want to do something special if an EOF is encountered in
- *  one of those states, place your code in the switch statement.
- *  Ultimately, you should return the EOF symbol, or your lexer won't
- *  work.  */
     switch(yy_lexical_state) {
-    case YYINITIAL:
-	/* nothing special to do in the initial state */
-	break;
-	/* If necessary, add code for other states here, e.g:
-	   case COMMENT:
-	   ...
-	   break;
-	*/
+        case YYINITIAL: // Expected
+            break;
+        default: // If in any other state, then something was left unclosed
+            return new Symbol(TokenConstants.error);
     }
     return new Symbol(TokenConstants.EOF);
 			}
@@ -310,6 +389,7 @@ class CoolLexer implements java_cup.runtime.Scanner {
 						{ /* This rule should be the very last
        in your lexical specification and will match match everything not
        matched by other lexical rules. */
+    System.out.printf("State: %s", yy_lexical_state);
     System.err.println("LEXER BUG - UNMATCHED: " + yytext());
 }
 					case -2:
@@ -320,20 +400,144 @@ class CoolLexer implements java_cup.runtime.Scanner {
 						break;
 					case 3:
 						{
+    transition(COMMENT);
+    nesting.push("(*");
+}
+					case -4:
+						break;
+					case 4:
+						{
     /* Sample lexical rule for "=>" arrow.
        Further lexical rules should be defined
        here, after the last %% separator */
     return new Symbol(TokenConstants.DARROW);
 }
-					case -4:
+					case -5:
 						break;
-					case 4:
+					case 5:
+						{
+    transition(CLASS_DEC);
+    return new Symbol(TokenConstants.CLASS);
+}
+					case -6:
+						break;
+					case 6:
+						{
+    // Eat whitespace where relevant
+    return null;
+}
+					case -7:
+						break;
+					case 7:
+						{
+    return new Symbol(TokenConstants.TYPEID);
+}
+					case -8:
+						break;
+					case 8:
+						{
+    return new Symbol(TokenConstants.INHERITS);
+}
+					case -9:
+						break;
+					case 9:
+						{
+    // Ignore anything in a comment
+    System.out.println("Found comment content!");
+}
+					case -10:
+						break;
+					case 10:
+						{
+    String last_open = nesting.pop();
+    if ("(*".equals(last_open)) {
+        if ("(*".equals(nesting.peek())) {
+            // Still in a comment, don't transition state
+        }
+        else { // No longer in a comment, transition state
+            transition(last_state);
+        }
+    } else {
+        // In comment without open comment in `nesting`, something's fishy.
+        return new Symbol(TokenConstants.error);
+    }
+}
+					case -11:
+						break;
+					case 12:
 						{ /* This rule should be the very last
        in your lexical specification and will match match everything not
        matched by other lexical rules. */
+    System.out.printf("State: %s", yy_lexical_state);
     System.err.println("LEXER BUG - UNMATCHED: " + yytext());
 }
-					case -5:
+					case -12:
+						break;
+					case 13:
+						{
+    // Ignore anything in a comment
+    System.out.println("Found comment content!");
+}
+					case -13:
+						break;
+					case 15:
+						{ /* This rule should be the very last
+       in your lexical specification and will match match everything not
+       matched by other lexical rules. */
+    System.out.printf("State: %s", yy_lexical_state);
+    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+}
+					case -14:
+						break;
+					case 16:
+						{
+    // Ignore anything in a comment
+    System.out.println("Found comment content!");
+}
+					case -15:
+						break;
+					case 18:
+						{ /* This rule should be the very last
+       in your lexical specification and will match match everything not
+       matched by other lexical rules. */
+    System.out.printf("State: %s", yy_lexical_state);
+    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+}
+					case -16:
+						break;
+					case 19:
+						{
+    // Ignore anything in a comment
+    System.out.println("Found comment content!");
+}
+					case -17:
+						break;
+					case 21:
+						{ /* This rule should be the very last
+       in your lexical specification and will match match everything not
+       matched by other lexical rules. */
+    System.out.printf("State: %s", yy_lexical_state);
+    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+}
+					case -18:
+						break;
+					case 23:
+						{ /* This rule should be the very last
+       in your lexical specification and will match match everything not
+       matched by other lexical rules. */
+    System.out.printf("State: %s", yy_lexical_state);
+    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+}
+					case -19:
+						break;
+					case 25:
+						{ /* This rule should be the very last
+       in your lexical specification and will match match everything not
+       matched by other lexical rules. */
+    System.out.printf("State: %s", yy_lexical_state);
+    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+}
+					case -20:
 						break;
 					default:
 						yy_error(YY_E_INTERNAL,false);
