@@ -20,6 +20,16 @@ class Yytoken {
     }
 } 
 
+class NestedState {
+    String prefix;
+    int state;
+
+    NestedState(String prefix, int state) {
+        this.prefix = prefix;
+        this.state = state;
+    }
+}
+
 %%
 
 %state CLASS
@@ -27,17 +37,21 @@ class Yytoken {
 %state COMMENT
 %state EXPR
 %state EXPR_STRING
+%state EXPR_BLOCK
 %state FEATURE
-%state FEATURE_DEC
-%state FORMAL
+%state FUNCTION
+%state FUNCTION_PARAMETERS
+%state STRING
+%state INT
 
 %char  /* int yychar; */
 %line  /* int yyline; */
 
-\DIGIT = [0-9]
-\ID = [a-z]\w*
-\TYPE = [A-Z]\w*
-\FORMAL = \ID\s+:\s+\TYPE
+\w = [a-zA-Z0-9_]
+\s = [ \n\f\r\t\v]
+\OBJECTID = [a-z]{\w}*
+\TYPEID = [A-Z]{\w}*
+\FORMAL = \ID{\s}+:{\s}+{\TYPE}
 
 %{
 
@@ -53,7 +67,7 @@ class Yytoken {
     StringBuilder sb = new StringBuilder();
 
     // Serves as a stack of braces, parentheses, etc.
-    Deque<String> nesting = new ArrayDeque<>();
+    Deque<NestedState> nesting = new ArrayDeque<>();
 
     private int curr_lineno = 1;
     int get_curr_lineno() {
@@ -70,12 +84,9 @@ class Yytoken {
 	return filename;
     }
 
-    private int last_state;
-
     private void transition(int state) {
         System.out.printf("Transitioning to state %s \n", state);
         if (yy_lexical_state != state) {
-            last_state = yy_lexical_state;
             yybegin(state);
         }
     }
@@ -87,7 +98,7 @@ class Yytoken {
  *  class constructor, all the extra initialization you want to do should
  *  go here.  Don't remove or modify anything that was there initially. */
 
-    last_state = yy_lexical_state;
+    nesting.push(new NestedState("", YYINITIAL));
 
 %init}
 
@@ -96,8 +107,16 @@ class Yytoken {
     switch(yy_lexical_state) {
         case YYINITIAL: // Expected
             break;
+        case COMMENT:
+            return new Symbol(TokenConstants.ERROR, "EOF in comment");
         default: // If in any other state, then something was left unclosed
-            return new Symbol(TokenConstants.error);
+            try {
+                Thread.sleep(1000);
+            }
+            catch (InterruptedException e) {
+            }
+            return new Symbol(TokenConstants.ERROR,
+                    String.format("EOF in state %d.", yy_lexical_state));
     }
     return new Symbol(TokenConstants.EOF);
 
@@ -108,59 +127,199 @@ class Yytoken {
 
 %%
 
-<YYINITIAL,CLASS,COMMENT>" \n\f\r\t\v" {
-    // Eat whitespace where relevant
-    return null;
-}
-
-"(*" {
-    transition(COMMENT);
-    nesting.push("(*");
-}
-
-<COMMENT>"*)" {
-    String last_open = nesting.pop();
-    if ("(*".equals(last_open)) {
-        if ("(*".equals(nesting.peek())) {
-            // Still in a comment, don't transition state
-        }
-        else { // No longer in a comment, transition state
-            transition(last_state);
-        }
-    } else {
-        // In comment without open comment in `nesting`, something's fishy.
-        return new Symbol(TokenConstants.error);
-    }
-}
-
-<COMMENT>. {
-    // Ignore anything in a comment
-    System.out.println("Found comment content!");
-}
-
-<YYINITIAL>class {
+<YYINITIAL>[cC][lL][aA][sS][sS] {
     transition(CLASS_DEC);
     return new Symbol(TokenConstants.CLASS);
+}
+
+[eE][lL][sS][eE] {
+    return new Symbol(TokenConstants.ELSE);
+}
+
+t[rR][uU][eE] {
+    return new Symbol(TokenConstants.BOOL_CONST, true);
+}
+
+f[aA][lL][sS][eE] {
+    return new Symbol(TokenConstants.BOOL_CONST, false);
 }
 
 <CLASS_DEC>inherits {
     return new Symbol(TokenConstants.INHERITS);
 }
 
-<CLASS_DEC>\TYPE {
-    return new Symbol(TokenConstants.TYPEID);
+"(*" {
+    transition(COMMENT);
+    System.out.println("(*");
+    nesting.push(new NestedState("(*", COMMENT));
 }
 
-<YYINITIAL>"=>" {
-    /* Sample lexical rule for "=>" arrow.
-       Further lexical rules should be defined
-       here, after the last %% separator */
-    return new Symbol(TokenConstants.DARROW);
+<COMMENT>"*)" {
+    if ("(*".equals(nesting.pop().prefix)) {
+        transition(nesting.peek().state);
+        System.out.println("*)");
+    } else {
+        // In comment without open comment in `nesting`, something's fishy.
+        return new Symbol(TokenConstants.ERROR);
+    }
 }
 
-. { /* This rule should be the very last
-       in your lexical specification and will match match everything not
-       matched by other lexical rules. */
-    System.out.printf("State: %s", yy_lexical_state);
-    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+<COMMENT>[^] {
+    // Ignore anything in a comment
+}
+
+<CLASS_DEC,CLASS,FUNCTION_PARAMETERS>":" {
+    return new Symbol(TokenConstants.COLON);
+}
+
+<CLASS,EXPR_BLOCK>";" {
+    return new Symbol(TokenConstants.SEMI);
+}
+
+<CLASS_DEC>"{" {
+    transition(CLASS);
+    nesting.push(new NestedState("{", yy_lexical_state));
+    return new Symbol(TokenConstants.LBRACE);
+}
+
+<CLASS_DEC,CLASS,FUNCTION_PARAMETERS>{\TYPEID} {
+    return new Symbol(TokenConstants.TYPEID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+
+<FUNCTION,EXPR_BLOCK>"." {
+    return new Symbol(TokenConstants.DOT);
+}
+
+<CLASS>"(" {
+    transition(FUNCTION_PARAMETERS);
+    nesting.push(new NestedState("(", yy_lexical_state));
+    return new Symbol(TokenConstants.LPAREN);
+}
+
+"(" {
+    nesting.push(new NestedState("(", yy_lexical_state));
+    return new Symbol(TokenConstants.LPAREN);
+}
+
+<FUNCTION_PARAMETERS>")" {
+    if ("(".equals(nesting.pop().prefix)) {
+        transition(nesting.peek().state);
+        return new Symbol(TokenConstants.RPAREN);
+    }
+}
+
+<CLASS,FUNCTION_PARAMETERS,FUNCTION,EXPR_BLOCK>{\OBJECTID} {
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+
+<CLASS>"{" {
+    transition(FUNCTION);
+    nesting.push(new NestedState("{", yy_lexical_state));
+    return new Symbol(TokenConstants.LBRACE);
+}
+
+<FUNCTION>"{" {
+    transition(EXPR_BLOCK);
+    nesting.push(new NestedState("{", yy_lexical_state));
+    return new Symbol(TokenConstants.LBRACE);
+}
+
+"{" {
+    nesting.push(new NestedState("{", yy_lexical_state));
+    return new Symbol(TokenConstants.LBRACE);
+}
+
+")" {
+    if (!"(".equals(nesting.pop().prefix) || nesting.peek() == null) {
+        return new Symbol(TokenConstants.ERROR, "Unmatched ')'");
+    }
+
+    transition(nesting.peek().state);
+    return new Symbol(TokenConstants.RPAREN);
+}
+
+"}" {
+    if (!"{".equals(nesting.pop().prefix) || nesting.peek() == null) {
+        return new Symbol(TokenConstants.ERROR, "Unmatched '}'");
+    }
+
+    transition(nesting.peek().state);
+    return new Symbol(TokenConstants.RBRACE);
+}
+
+<STRING> \" {
+    // End of string
+    if (!"\"".equals(nesting.pop().prefix) || nesting.peek() == null) {
+        return new Symbol(TokenConstants.ERROR, "Unmatched '\"'");
+    }
+    
+    if (sb.length() >= MAX_STR_CONST) {
+        return new Symbol(TokenConstants.ERROR, "String constant too long");
+    }
+
+    transition(nesting.peek().state);
+    AbstractSymbol string = AbstractTable.idtable.addString(sb.toString());
+    sb.setLength(0);
+    return new Symbol(TokenConstants.STR_CONST, string);
+}
+
+<STRING>\0 {
+    return new Symbol(TokenConstants.ERROR, "String contains null character");
+}
+
+<STRING>\n {
+    return new Symbol(TokenConstants.ERROR, "Unterminated string constant");
+}
+
+<STRING>. {
+    sb.append(yytext());
+}
+
+\" {
+    transition(STRING);
+    nesting.push(new NestedState("\"", yy_lexical_state));
+}
+
+<EXPR_BLOCK>"<-" {
+    return new Symbol(TokenConstants.ASSIGN);
+}
+
+[0-9]+ {
+    return new Symbol(TokenConstants.INT_CONST,
+                      AbstractTable.inttable.addString(yytext()));
+}
+
+"," {
+    return new Symbol(TokenConstants.COMMA);
+}
+
+"=" {
+    return new Symbol(TokenConstants.EQ);
+}
+
+"-" {
+    return new Symbol(TokenConstants.MINUS);
+}
+
+"+" {
+    return new Symbol(TokenConstants.PLUS);
+}
+
+"*" {
+    return new Symbol(TokenConstants.MULT);
+}
+
+"/" {
+    return new Symbol(TokenConstants.DIV);
+}
+
+{\s} {
+    // whitespace
+}
+
+. { 
+    // Anything unmatched
+    System.err.printf("UNMATCHED: %s (State %d)\n", yytext(), yy_lexical_state);
 }

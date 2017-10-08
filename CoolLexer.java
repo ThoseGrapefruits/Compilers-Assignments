@@ -15,6 +15,14 @@ class Yytoken {
         this.value = value;
     }
 } 
+class NestedState {
+    String prefix;
+    int state;
+    NestedState(String prefix, int state) {
+        this.prefix = prefix;
+        this.state = state;
+    }
+}
 
 
 class CoolLexer implements java_cup.runtime.Scanner {
@@ -37,7 +45,7 @@ class CoolLexer implements java_cup.runtime.Scanner {
     // For assembling string constants
     StringBuilder sb = new StringBuilder();
     // Serves as a stack of braces, parentheses, etc.
-    Deque<String> nesting = new ArrayDeque<>();
+    Deque<NestedState> nesting = new ArrayDeque<>();
     private int curr_lineno = 1;
     int get_curr_lineno() {
 	return curr_lineno;
@@ -49,11 +57,9 @@ class CoolLexer implements java_cup.runtime.Scanner {
     AbstractSymbol curr_filename() {
 	return filename;
     }
-    private int last_state;
     private void transition(int state) {
         System.out.printf("Transitioning to state %s \n", state);
         if (yy_lexical_state != state) {
-            last_state = yy_lexical_state;
             yybegin(state);
         }
     }
@@ -98,29 +104,35 @@ class CoolLexer implements java_cup.runtime.Scanner {
 /*  Stuff enclosed in %init{ %init} is copied verbatim to the lexer
  *  class constructor, all the extra initialization you want to do should
  *  go here.  Don't remove or modify anything that was there initially. */
-    last_state = yy_lexical_state;
+    nesting.push(new NestedState("", YYINITIAL));
 	}
 
 	private boolean yy_eof_done = false;
-	private final int FEATURE_DEC = 7;
-	private final int FEATURE = 6;
+	private final int INT = 11;
+	private final int FEATURE = 7;
+	private final int STRING = 10;
+	private final int FUNCTION_PARAMETERS = 9;
+	private final int EXPR_BLOCK = 6;
 	private final int YYINITIAL = 0;
 	private final int EXPR = 4;
+	private final int FUNCTION = 8;
 	private final int EXPR_STRING = 5;
-	private final int FORMAL = 8;
 	private final int COMMENT = 3;
 	private final int CLASS_DEC = 2;
 	private final int CLASS = 1;
 	private final int yy_state_dtrans[] = {
 		0,
-		41,
-		42,
-		40,
-		43,
-		43,
-		43,
-		43,
-		43
+		71,
+		72,
+		79,
+		84,
+		84,
+		80,
+		84,
+		81,
+		82,
+		83,
+		84
 	};
 	private void yybegin (int state) {
 		yy_lexical_state = state;
@@ -284,55 +296,130 @@ class CoolLexer implements java_cup.runtime.Scanner {
 		/* 8 */ YY_NO_ANCHOR,
 		/* 9 */ YY_NO_ANCHOR,
 		/* 10 */ YY_NO_ANCHOR,
-		/* 11 */ YY_NOT_ACCEPT,
+		/* 11 */ YY_NO_ANCHOR,
 		/* 12 */ YY_NO_ANCHOR,
 		/* 13 */ YY_NO_ANCHOR,
-		/* 14 */ YY_NOT_ACCEPT,
+		/* 14 */ YY_NO_ANCHOR,
 		/* 15 */ YY_NO_ANCHOR,
 		/* 16 */ YY_NO_ANCHOR,
-		/* 17 */ YY_NOT_ACCEPT,
+		/* 17 */ YY_NO_ANCHOR,
 		/* 18 */ YY_NO_ANCHOR,
 		/* 19 */ YY_NO_ANCHOR,
-		/* 20 */ YY_NOT_ACCEPT,
+		/* 20 */ YY_NO_ANCHOR,
 		/* 21 */ YY_NO_ANCHOR,
-		/* 22 */ YY_NOT_ACCEPT,
+		/* 22 */ YY_NO_ANCHOR,
 		/* 23 */ YY_NO_ANCHOR,
-		/* 24 */ YY_NOT_ACCEPT,
+		/* 24 */ YY_NO_ANCHOR,
 		/* 25 */ YY_NO_ANCHOR,
-		/* 26 */ YY_NOT_ACCEPT,
-		/* 27 */ YY_NOT_ACCEPT,
-		/* 28 */ YY_NOT_ACCEPT,
-		/* 29 */ YY_NOT_ACCEPT,
-		/* 30 */ YY_NOT_ACCEPT,
-		/* 31 */ YY_NOT_ACCEPT,
-		/* 32 */ YY_NOT_ACCEPT,
-		/* 33 */ YY_NOT_ACCEPT,
-		/* 34 */ YY_NOT_ACCEPT,
-		/* 35 */ YY_NOT_ACCEPT,
-		/* 36 */ YY_NOT_ACCEPT,
-		/* 37 */ YY_NOT_ACCEPT,
-		/* 38 */ YY_NOT_ACCEPT,
+		/* 26 */ YY_NO_ANCHOR,
+		/* 27 */ YY_NO_ANCHOR,
+		/* 28 */ YY_NO_ANCHOR,
+		/* 29 */ YY_NO_ANCHOR,
+		/* 30 */ YY_NO_ANCHOR,
+		/* 31 */ YY_NO_ANCHOR,
+		/* 32 */ YY_NO_ANCHOR,
+		/* 33 */ YY_NO_ANCHOR,
+		/* 34 */ YY_NO_ANCHOR,
+		/* 35 */ YY_NO_ANCHOR,
+		/* 36 */ YY_NO_ANCHOR,
+		/* 37 */ YY_NO_ANCHOR,
+		/* 38 */ YY_NO_ANCHOR,
 		/* 39 */ YY_NOT_ACCEPT,
-		/* 40 */ YY_NOT_ACCEPT,
-		/* 41 */ YY_NOT_ACCEPT,
-		/* 42 */ YY_NOT_ACCEPT,
-		/* 43 */ YY_NOT_ACCEPT
+		/* 40 */ YY_NO_ANCHOR,
+		/* 41 */ YY_NO_ANCHOR,
+		/* 42 */ YY_NO_ANCHOR,
+		/* 43 */ YY_NO_ANCHOR,
+		/* 44 */ YY_NO_ANCHOR,
+		/* 45 */ YY_NO_ANCHOR,
+		/* 46 */ YY_NO_ANCHOR,
+		/* 47 */ YY_NO_ANCHOR,
+		/* 48 */ YY_NOT_ACCEPT,
+		/* 49 */ YY_NO_ANCHOR,
+		/* 50 */ YY_NO_ANCHOR,
+		/* 51 */ YY_NO_ANCHOR,
+		/* 52 */ YY_NO_ANCHOR,
+		/* 53 */ YY_NO_ANCHOR,
+		/* 54 */ YY_NOT_ACCEPT,
+		/* 55 */ YY_NO_ANCHOR,
+		/* 56 */ YY_NO_ANCHOR,
+		/* 57 */ YY_NO_ANCHOR,
+		/* 58 */ YY_NO_ANCHOR,
+		/* 59 */ YY_NOT_ACCEPT,
+		/* 60 */ YY_NO_ANCHOR,
+		/* 61 */ YY_NO_ANCHOR,
+		/* 62 */ YY_NO_ANCHOR,
+		/* 63 */ YY_NOT_ACCEPT,
+		/* 64 */ YY_NO_ANCHOR,
+		/* 65 */ YY_NO_ANCHOR,
+		/* 66 */ YY_NOT_ACCEPT,
+		/* 67 */ YY_NO_ANCHOR,
+		/* 68 */ YY_NOT_ACCEPT,
+		/* 69 */ YY_NOT_ACCEPT,
+		/* 70 */ YY_NOT_ACCEPT,
+		/* 71 */ YY_NOT_ACCEPT,
+		/* 72 */ YY_NOT_ACCEPT,
+		/* 73 */ YY_NOT_ACCEPT,
+		/* 74 */ YY_NOT_ACCEPT,
+		/* 75 */ YY_NOT_ACCEPT,
+		/* 76 */ YY_NOT_ACCEPT,
+		/* 77 */ YY_NOT_ACCEPT,
+		/* 78 */ YY_NOT_ACCEPT,
+		/* 79 */ YY_NOT_ACCEPT,
+		/* 80 */ YY_NOT_ACCEPT,
+		/* 81 */ YY_NOT_ACCEPT,
+		/* 82 */ YY_NOT_ACCEPT,
+		/* 83 */ YY_NOT_ACCEPT,
+		/* 84 */ YY_NOT_ACCEPT,
+		/* 85 */ YY_NO_ANCHOR,
+		/* 86 */ YY_NO_ANCHOR,
+		/* 87 */ YY_NO_ANCHOR,
+		/* 88 */ YY_NOT_ACCEPT,
+		/* 89 */ YY_NO_ANCHOR,
+		/* 90 */ YY_NO_ANCHOR,
+		/* 91 */ YY_NO_ANCHOR,
+		/* 92 */ YY_NO_ANCHOR,
+		/* 93 */ YY_NO_ANCHOR,
+		/* 94 */ YY_NO_ANCHOR,
+		/* 95 */ YY_NO_ANCHOR
 	};
 	private int yy_cmap[] = unpackFromString(1,130,
-"11:10,0,11:2,0,11:18,1,11:7,8,10,9,11:18,23,24,11:6,22,11:10,21,11:3,19,11:" +
-"4,20,11:2,2,11:4,14,11,12,11,18,4,11,17,16,11:2,13,11,3,11:3,5,15,6,11,7,11" +
-":9,25:2")[0];
+"33,35:8,43,34,35,43,19,35:18,43,35,32,35:5,16,18,17,41,39,37,29,42,38:10,20" +
+",21,36,40,35:3,23,24,25,24,5,24:6,26,24:5,7,4,24,27,24:5,35:4,28,35,3,30,1," +
+"30,13,9,30,12,10,30:2,2,30,11,30:3,14,15,6,8,44,30:4,22,35,31,35:2,0:2")[0];
 
-	private int yy_rmap[] = unpackFromString(1,44,
-"0,1,2:7,1,2,3,2:2,4,5:2,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,2" +
-"4,25,26,27,28,29,30,31,32")[0];
+	private int yy_rmap[] = unpackFromString(1,96,
+"0,1,2,3,1:7,4,1:9,5,6,3,1:15,7,1,6,5:2,8,9,10:2,11,12,5,13,12:2,14,15,16,15" +
+":2,17,18,3,4,19,20,21,22,4,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38," +
+"39,10,40,41,42,43,44,45,46,47,48,49")[0];
 
-	private int yy_nxt[][] = unpackFromString(33,26,
-"-1,1,12:6,15,12:3,18,12:10,21,12,2,-1:2,11,-1:52,17,-1:36,20,-1:20,3,-1:18," +
-"22,-1:36,14,-1:22,10,-1:30,24,-1:34,4,-1:5,26,-1:24,32,-1:37,5,-1:30,33,-1:" +
-"7,27,-1:28,28,-1:22,29,-1:29,30,-1:21,31,-1:30,6,-1:35,34,-1:29,35,-1:22,36" +
-",-1:29,7,-1:8,37,-1:36,38,-1:15,39,-1:34,8,-1:11,9,13:6,16,19,13:15,2,-1,1," +
-"12:6,15,12:16,2,-1,12:7,15,12:7,23,12:2,25,12:5,2,-1,12:7,15,12:16,2");
+	private int yy_nxt[][] = unpackFromString(50,45,
+"1,2,40:3,85,49,40:2,55,40:3,85,40:2,3,4,5,6,40:2,7,40:2,2,40:5,8,9,40,6,40:" +
+"2,10,11,12,13,14,15,6:2,-1:47,39,-1:23,39,-1:35,16,-1:65,11,-1:7,21:15,-1:7" +
+",21:6,-1,21,-1:7,21,-1:5,21,-1,22:15,-1:7,22:6,-1,22,-1:7,22,-1:5,22,-1:3,8" +
+"8,-1:19,88,-1:22,21:4,42,21:7,42,21:2,-1:7,21:6,-1,21,-1:7,21,-1:5,21,-1,22" +
+":4,41,22:7,41,22:2,-1:7,22:6,-1,22,-1:7,22,-1:5,22,-1:2,48,-1:23,48,-1:22,6" +
+"3,-1:10,63,-1:36,54,-1:6,54,-1:31,21:4,50,21:7,50,21:2,-1:7,21:6,-1,21,-1:7" +
+",21,-1:5,21,-1:8,66,-1:18,66,-1:20,59,-1:19,59,-1:22,21:4,43,21:7,43,21:2,-" +
+"1:7,21:6,-1,21,-1:7,21,-1:5,21,-1:2,68,-1:23,68,-1:29,73,-1:38,17,-1:7,17,-" +
+"1:68,32,-1:25,30,-1:31,18,-1:7,18,-1:35,70,-1:10,70,-1:33,19,-1:10,19,-1:34" +
+",20,-1:7,20,-1:31,1,21:3,22,92,91,22,21,95,21:3,93,21:2,23,4,5,6,24,25,26,2" +
+"2:5,40:2,21,8,9,40,6,40:2,10,11,12,13,14,15,6,21,1,40:3,22,92,49,22,40,55,6" +
+"0,40:2,85,40:2,3,4,5,6,24,40,27,22:5,40:3,8,9,40,6,40:2,10,11,12,13,14,15,6" +
+":2,-1:12,74,-1:45,75,-1:45,76,-1:40,77,-1:40,78,-1:53,28,-1:29,1,29:4,46,52" +
+",29:2,57,29:3,46,29:2,61,65,29:20,67,29:6,1,21:3,40,85,91,40,21,95,21:3,93," +
+"21:2,3,4,5,6,40,25,7,40:6,31,21,8,9,40,6,40,64,10,11,12,13,14,15,6,21,1,21:" +
+"3,40,85,91,40,21,95,21:3,93,21:2,3,4,5,6,40:2,33,40:6,31,21,8,9,40,6,40:2,1" +
+"0,11,12,13,14,15,6,21,1,21:3,22,92,91,22,21,95,21:3,93,21:2,3,4,34,6,24,40," +
+"7,22:5,40:2,21,8,9,40,6,40:2,10,11,12,13,14,15,6,21,1,35:4,47,53,35:2,58,35" +
+":3,47,35:2,3,35,5,6,35:2,7,35:8,8,36,37,38,35:3,62,35:6,1,40:4,85,49,40:2,5" +
+"5,40:3,85,40:2,3,4,5,6,40:2,7,40:8,8,9,40,6,40:2,10,11,12,13,14,15,6:2,-1,2" +
+"1:7,44,21:7,-1:7,21:4,44,21,-1,21,-1:7,21,-1:5,21,-1,22:3,45,22:10,45,-1:7," +
+"22:6,-1,22,-1:7,22,-1:5,22,-1:4,69,-1:10,69,-1:30,21:3,51,21:10,51,-1:7,21:" +
+"6,-1,21,-1:7,21,-1:5,21,-1,21:3,56,21:10,56,-1:7,21:6,-1,21,-1:7,21,-1:5,21" +
+",-1,21:6,86,21:6,86,21,-1:7,21:6,-1,21,-1:7,21,-1:5,21,-1,22,87,22:13,-1:7," +
+"22:3,87,22:2,-1,22,-1:7,22,-1:5,22,-1,21,89,21:13,-1:7,21:3,89,21:2,-1,21,-" +
+"1:7,21,-1:5,21,-1,21,90,21:13,-1:7,21:3,90,21:2,-1,21,-1:7,21,-1:5,21,-1,21" +
+":2,94,21:12,-1:7,94,21:5,-1,21,-1:7,21,-1:5,21");
 
 	public java_cup.runtime.Symbol next_token ()
 		throws java.io.IOException {
@@ -360,8 +447,16 @@ class CoolLexer implements java_cup.runtime.Scanner {
     switch(yy_lexical_state) {
         case YYINITIAL: // Expected
             break;
+        case COMMENT:
+            return new Symbol(TokenConstants.ERROR, "EOF in comment");
         default: // If in any other state, then something was left unclosed
-            return new Symbol(TokenConstants.error);
+            try {
+                Thread.sleep(1000);
+            }
+            catch (InterruptedException e) {
+            }
+            return new Symbol(TokenConstants.ERROR,
+                    String.format("EOF in state %d.", yy_lexical_state));
     }
     return new Symbol(TokenConstants.EOF);
 			}
@@ -386,158 +481,492 @@ class CoolLexer implements java_cup.runtime.Scanner {
 					yy_to_mark();
 					switch (yy_last_accept_state) {
 					case 1:
-						{ /* This rule should be the very last
-       in your lexical specification and will match match everything not
-       matched by other lexical rules. */
-    System.out.printf("State: %s", yy_lexical_state);
-    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
-}
+						
 					case -2:
 						break;
 					case 2:
-						
+						{ 
+    // Anything unmatched
+    System.err.printf("UNMATCHED: %s (State %d)\n", yytext(), yy_lexical_state);
+}
 					case -3:
 						break;
 					case 3:
 						{
-    transition(COMMENT);
-    nesting.push("(*");
+    nesting.push(new NestedState("(", yy_lexical_state));
+    return new Symbol(TokenConstants.LPAREN);
 }
 					case -4:
 						break;
 					case 4:
 						{
-    /* Sample lexical rule for "=>" arrow.
-       Further lexical rules should be defined
-       here, after the last %% separator */
-    return new Symbol(TokenConstants.DARROW);
+    return new Symbol(TokenConstants.MULT);
 }
 					case -5:
 						break;
 					case 5:
 						{
-    transition(CLASS_DEC);
-    return new Symbol(TokenConstants.CLASS);
+    if (!"(".equals(nesting.pop().prefix) || nesting.peek() == null) {
+        return new Symbol(TokenConstants.ERROR, "Unmatched ')'");
+    }
+    transition(nesting.peek().state);
+    return new Symbol(TokenConstants.RPAREN);
 }
 					case -6:
 						break;
 					case 6:
 						{
-    // Eat whitespace where relevant
-    return null;
+    // whitespace
 }
 					case -7:
 						break;
 					case 7:
 						{
-    return new Symbol(TokenConstants.TYPEID);
+    nesting.push(new NestedState("{", yy_lexical_state));
+    return new Symbol(TokenConstants.LBRACE);
 }
 					case -8:
 						break;
 					case 8:
 						{
-    return new Symbol(TokenConstants.INHERITS);
+    if (!"{".equals(nesting.pop().prefix) || nesting.peek() == null) {
+        return new Symbol(TokenConstants.ERROR, "Unmatched '}'");
+    }
+    transition(nesting.peek().state);
+    return new Symbol(TokenConstants.RBRACE);
 }
 					case -9:
 						break;
 					case 9:
 						{
-    // Ignore anything in a comment
-    System.out.println("Found comment content!");
+    transition(STRING);
+    nesting.push(new NestedState("\"", yy_lexical_state));
 }
 					case -10:
 						break;
 					case 10:
 						{
-    String last_open = nesting.pop();
-    if ("(*".equals(last_open)) {
-        if ("(*".equals(nesting.peek())) {
-            // Still in a comment, don't transition state
-        }
-        else { // No longer in a comment, transition state
-            transition(last_state);
-        }
-    } else {
-        // In comment without open comment in `nesting`, something's fishy.
-        return new Symbol(TokenConstants.error);
-    }
+    return new Symbol(TokenConstants.MINUS);
 }
 					case -11:
 						break;
-					case 12:
-						{ /* This rule should be the very last
-       in your lexical specification and will match match everything not
-       matched by other lexical rules. */
-    System.out.printf("State: %s", yy_lexical_state);
-    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+					case 11:
+						{
+    return new Symbol(TokenConstants.INT_CONST,
+                      AbstractTable.inttable.addString(yytext()));
 }
 					case -12:
 						break;
-					case 13:
+					case 12:
 						{
-    // Ignore anything in a comment
-    System.out.println("Found comment content!");
+    return new Symbol(TokenConstants.COMMA);
 }
 					case -13:
 						break;
-					case 15:
-						{ /* This rule should be the very last
-       in your lexical specification and will match match everything not
-       matched by other lexical rules. */
-    System.out.printf("State: %s", yy_lexical_state);
-    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+					case 13:
+						{
+    return new Symbol(TokenConstants.EQ);
 }
 					case -14:
 						break;
-					case 16:
+					case 14:
 						{
-    // Ignore anything in a comment
-    System.out.println("Found comment content!");
+    return new Symbol(TokenConstants.PLUS);
 }
 					case -15:
 						break;
-					case 18:
-						{ /* This rule should be the very last
-       in your lexical specification and will match match everything not
-       matched by other lexical rules. */
-    System.out.printf("State: %s", yy_lexical_state);
-    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+					case 15:
+						{
+    return new Symbol(TokenConstants.DIV);
 }
 					case -16:
 						break;
-					case 19:
+					case 16:
 						{
-    // Ignore anything in a comment
-    System.out.println("Found comment content!");
+    transition(COMMENT);
+    System.out.println("(*");
+    nesting.push(new NestedState("(*", COMMENT));
 }
 					case -17:
 						break;
-					case 21:
-						{ /* This rule should be the very last
-       in your lexical specification and will match match everything not
-       matched by other lexical rules. */
-    System.out.printf("State: %s", yy_lexical_state);
-    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+					case 17:
+						{
+    return new Symbol(TokenConstants.ELSE);
 }
 					case -18:
 						break;
-					case 23:
-						{ /* This rule should be the very last
-       in your lexical specification and will match match everything not
-       matched by other lexical rules. */
-    System.out.printf("State: %s", yy_lexical_state);
-    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+					case 18:
+						{
+    return new Symbol(TokenConstants.BOOL_CONST, true);
 }
 					case -19:
 						break;
-					case 25:
-						{ /* This rule should be the very last
-       in your lexical specification and will match match everything not
-       matched by other lexical rules. */
-    System.out.printf("State: %s", yy_lexical_state);
-    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+					case 19:
+						{
+    transition(CLASS_DEC);
+    return new Symbol(TokenConstants.CLASS);
 }
 					case -20:
+						break;
+					case 20:
+						{
+    return new Symbol(TokenConstants.BOOL_CONST, false);
+}
+					case -21:
+						break;
+					case 21:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -22:
+						break;
+					case 22:
+						{
+    return new Symbol(TokenConstants.TYPEID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -23:
+						break;
+					case 23:
+						{
+    transition(FUNCTION_PARAMETERS);
+    nesting.push(new NestedState("(", yy_lexical_state));
+    return new Symbol(TokenConstants.LPAREN);
+}
+					case -24:
+						break;
+					case 24:
+						{
+    return new Symbol(TokenConstants.COLON);
+}
+					case -25:
+						break;
+					case 25:
+						{
+    return new Symbol(TokenConstants.SEMI);
+}
+					case -26:
+						break;
+					case 26:
+						{
+    transition(FUNCTION);
+    nesting.push(new NestedState("{", yy_lexical_state));
+    return new Symbol(TokenConstants.LBRACE);
+}
+					case -27:
+						break;
+					case 27:
+						{
+    transition(CLASS);
+    nesting.push(new NestedState("{", yy_lexical_state));
+    return new Symbol(TokenConstants.LBRACE);
+}
+					case -28:
+						break;
+					case 28:
+						{
+    return new Symbol(TokenConstants.INHERITS);
+}
+					case -29:
+						break;
+					case 29:
+						{
+    // Ignore anything in a comment
+}
+					case -30:
+						break;
+					case 30:
+						{
+    if ("(*".equals(nesting.pop().prefix)) {
+        transition(nesting.peek().state);
+        System.out.println("*)");
+    } else {
+        // In comment without open comment in `nesting`, something's fishy.
+        return new Symbol(TokenConstants.ERROR);
+    }
+}
+					case -31:
+						break;
+					case 31:
+						{
+    return new Symbol(TokenConstants.DOT);
+}
+					case -32:
+						break;
+					case 32:
+						{
+    return new Symbol(TokenConstants.ASSIGN);
+}
+					case -33:
+						break;
+					case 33:
+						{
+    transition(EXPR_BLOCK);
+    nesting.push(new NestedState("{", yy_lexical_state));
+    return new Symbol(TokenConstants.LBRACE);
+}
+					case -34:
+						break;
+					case 34:
+						{
+    if ("(".equals(nesting.pop().prefix)) {
+        transition(nesting.peek().state);
+        return new Symbol(TokenConstants.RPAREN);
+    }
+}
+					case -35:
+						break;
+					case 35:
+						{
+    sb.append(yytext());
+}
+					case -36:
+						break;
+					case 36:
+						{
+    // End of string
+    if (!"\"".equals(nesting.pop().prefix) || nesting.peek() == null) {
+        return new Symbol(TokenConstants.ERROR, "Unmatched '\"'");
+    }
+    if (sb.length() >= MAX_STR_CONST) {
+        return new Symbol(TokenConstants.ERROR, "String constant too long");
+    }
+    transition(nesting.peek().state);
+    AbstractSymbol string = AbstractTable.idtable.addString(sb.toString());
+    sb.setLength(0);
+    return new Symbol(TokenConstants.STR_CONST, string);
+}
+					case -37:
+						break;
+					case 37:
+						{
+    return new Symbol(TokenConstants.ERROR, "String contains null character");
+}
+					case -38:
+						break;
+					case 38:
+						{
+    return new Symbol(TokenConstants.ERROR, "Unterminated string constant");
+}
+					case -39:
+						break;
+					case 40:
+						{ 
+    // Anything unmatched
+    System.err.printf("UNMATCHED: %s (State %d)\n", yytext(), yy_lexical_state);
+}
+					case -40:
+						break;
+					case 41:
+						{
+    return new Symbol(TokenConstants.ELSE);
+}
+					case -41:
+						break;
+					case 42:
+						{
+    return new Symbol(TokenConstants.BOOL_CONST, true);
+}
+					case -42:
+						break;
+					case 43:
+						{
+    return new Symbol(TokenConstants.BOOL_CONST, false);
+}
+					case -43:
+						break;
+					case 44:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -44:
+						break;
+					case 45:
+						{
+    return new Symbol(TokenConstants.TYPEID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -45:
+						break;
+					case 46:
+						{
+    // Ignore anything in a comment
+}
+					case -46:
+						break;
+					case 47:
+						{
+    sb.append(yytext());
+}
+					case -47:
+						break;
+					case 49:
+						{ 
+    // Anything unmatched
+    System.err.printf("UNMATCHED: %s (State %d)\n", yytext(), yy_lexical_state);
+}
+					case -48:
+						break;
+					case 50:
+						{
+    return new Symbol(TokenConstants.ELSE);
+}
+					case -49:
+						break;
+					case 51:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -50:
+						break;
+					case 52:
+						{
+    // Ignore anything in a comment
+}
+					case -51:
+						break;
+					case 53:
+						{
+    sb.append(yytext());
+}
+					case -52:
+						break;
+					case 55:
+						{ 
+    // Anything unmatched
+    System.err.printf("UNMATCHED: %s (State %d)\n", yytext(), yy_lexical_state);
+}
+					case -53:
+						break;
+					case 56:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -54:
+						break;
+					case 57:
+						{
+    // Ignore anything in a comment
+}
+					case -55:
+						break;
+					case 58:
+						{
+    sb.append(yytext());
+}
+					case -56:
+						break;
+					case 60:
+						{ 
+    // Anything unmatched
+    System.err.printf("UNMATCHED: %s (State %d)\n", yytext(), yy_lexical_state);
+}
+					case -57:
+						break;
+					case 61:
+						{
+    // Ignore anything in a comment
+}
+					case -58:
+						break;
+					case 62:
+						{
+    sb.append(yytext());
+}
+					case -59:
+						break;
+					case 64:
+						{ 
+    // Anything unmatched
+    System.err.printf("UNMATCHED: %s (State %d)\n", yytext(), yy_lexical_state);
+}
+					case -60:
+						break;
+					case 65:
+						{
+    // Ignore anything in a comment
+}
+					case -61:
+						break;
+					case 67:
+						{
+    // Ignore anything in a comment
+}
+					case -62:
+						break;
+					case 85:
+						{ 
+    // Anything unmatched
+    System.err.printf("UNMATCHED: %s (State %d)\n", yytext(), yy_lexical_state);
+}
+					case -63:
+						break;
+					case 86:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -64:
+						break;
+					case 87:
+						{
+    return new Symbol(TokenConstants.TYPEID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -65:
+						break;
+					case 89:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -66:
+						break;
+					case 90:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -67:
+						break;
+					case 91:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -68:
+						break;
+					case 92:
+						{
+    return new Symbol(TokenConstants.TYPEID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -69:
+						break;
+					case 93:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -70:
+						break;
+					case 94:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -71:
+						break;
+					case 95:
+						{
+    return new Symbol(TokenConstants.OBJECTID,
+                      AbstractTable.idtable.addString(yytext()));
+}
+					case -72:
 						break;
 					default:
 						yy_error(YY_E_INTERNAL,false);

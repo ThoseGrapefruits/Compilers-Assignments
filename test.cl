@@ -2,7 +2,7 @@
    arrays are faked as Strings,
    X's respresent live cells, dots represent dead cells,
    no error checking is done *)
-class CellularAutomaton inherits IO {
+clAss CellularAutomaton inherits IO {
     population_map : String;
    
     init(map : String) : SELF_TYPE {
@@ -90,7 +90,7 @@ class Main {
                         countdown <- countdown - 1;
                     
                 pool
-            );  (* end let countdown
+            );  (* end let countdown *)
             self;
         }
     };
