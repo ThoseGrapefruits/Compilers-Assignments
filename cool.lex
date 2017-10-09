@@ -20,29 +20,10 @@ class Yytoken {
     }
 } 
 
-class NestedState {
-    String prefix;
-    int state;
-
-    NestedState(String prefix, int state) {
-        this.prefix = prefix;
-        this.state = state;
-    }
-}
-
 %%
 
-%state CLASS
-%state CLASS_DEC
 %state COMMENT
-%state EXPR
-%state EXPR_STRING
-%state EXPR_BLOCK
-%state FEATURE
-%state FUNCTION
-%state FUNCTION_PARAMETERS
 %state STRING
-%state INT
 
 %char  /* int yychar; */
 %line  /* int yyline; */
@@ -67,11 +48,10 @@ class NestedState {
     StringBuilder sb = new StringBuilder();
 
     // Serves as a stack of braces, parentheses, etc.
-    Deque<NestedState> nesting = new ArrayDeque<>();
+    Deque<String> nesting = new ArrayDeque<>();
 
-    private int curr_lineno = 1;
     int get_curr_lineno() {
-	return curr_lineno;
+	return yyline + 1;
     }
 
     private AbstractSymbol filename;
@@ -85,7 +65,6 @@ class NestedState {
     }
 
     private void transition(int state) {
-        System.out.printf("Transitioning to state %s \n", state);
         if (yy_lexical_state != state) {
             yybegin(state);
         }
@@ -98,27 +77,24 @@ class NestedState {
  *  class constructor, all the extra initialization you want to do should
  *  go here.  Don't remove or modify anything that was there initially. */
 
-    nesting.push(new NestedState("", YYINITIAL));
-
 %init}
 
 %eofval{
 
     switch(yy_lexical_state) {
         case YYINITIAL: // Expected
-            break;
+            return new Symbol(TokenConstants.EOF);
         case COMMENT:
+            transition(YYINITIAL);
             return new Symbol(TokenConstants.ERROR, "EOF in comment");
+        case STRING:
+            transition(YYINITIAL);
+            return new Symbol(TokenConstants.ERROR, "EOF in String");
         default: // If in any other state, then something was left unclosed
-            try {
-                Thread.sleep(1000);
-            }
-            catch (InterruptedException e) {
-            }
+            transition(YYINITIAL);
             return new Symbol(TokenConstants.ERROR,
                     String.format("EOF in state %d.", yy_lexical_state));
     }
-    return new Symbol(TokenConstants.EOF);
 
 %eofval}
 
@@ -127,142 +103,207 @@ class NestedState {
 
 %%
 
-<YYINITIAL>[cC][lL][aA][sS][sS] {
-    transition(CLASS_DEC);
-    return new Symbol(TokenConstants.CLASS);
-}
-
-[eE][lL][sS][eE] {
-    return new Symbol(TokenConstants.ELSE);
-}
-
-t[rR][uU][eE] {
-    return new Symbol(TokenConstants.BOOL_CONST, true);
-}
-
-f[aA][lL][sS][eE] {
-    return new Symbol(TokenConstants.BOOL_CONST, false);
-}
-
-<CLASS_DEC>inherits {
-    return new Symbol(TokenConstants.INHERITS);
-}
-
-"(*" {
+<YYINITIAL,COMMENT>"(*" {
     transition(COMMENT);
-    System.out.println("(*");
-    nesting.push(new NestedState("(*", COMMENT));
+    nesting.push("(*");
+}
+
+\0 {
+    return new Symbol(TokenConstants.ERROR, "\000");
 }
 
 <COMMENT>"*)" {
-    if ("(*".equals(nesting.pop().prefix)) {
-        transition(nesting.peek().state);
-        System.out.println("*)");
+
+    if (nesting.size() != 0 && "(*".equals(nesting.pop())) {
+        if (nesting.size() == 0 || !"(*".equals(nesting.peek())) {
+            transition(YYINITIAL); // Exiting a comment
+        }
     } else {
         // In comment without open comment in `nesting`, something's fishy.
-        return new Symbol(TokenConstants.ERROR);
+        return new Symbol(TokenConstants.ERROR, "Unmatched *)");
     }
+}
+
+"*)" {
+    return new Symbol(TokenConstants.ERROR, "Unmatched *)");
 }
 
 <COMMENT>[^] {
     // Ignore anything in a comment
 }
 
-<CLASS_DEC,CLASS,FUNCTION_PARAMETERS>":" {
+
+<YYINITIAL>[cC][lL][aA][sS][sS] {
+    return new Symbol(TokenConstants.CLASS);
+}
+
+<YYINITIAL>[eE][lL][sS][eE] {
+    return new Symbol(TokenConstants.ELSE);
+}
+
+<YYINITIAL>t[rR][uU][eE] {
+    return new Symbol(TokenConstants.BOOL_CONST, true);
+}
+
+<YYINITIAL>f[aA][lL][sS][eE] {
+    return new Symbol(TokenConstants.BOOL_CONST, false);
+}
+
+<YYINITIAL>[fF][iI] {
+    return new Symbol(TokenConstants.FI);
+}
+
+<YYINITIAL>[iI][fF] {
+    return new Symbol(TokenConstants.IF);
+}
+
+<YYINITIAL>[iI][nN] {
+    return new Symbol(TokenConstants.IN);
+}
+
+<YYINITIAL>[iI][nN][hH][eE][rR][iI][tT][sS] {
+    return new Symbol(TokenConstants.INHERITS);
+}
+
+<YYINITIAL>[iI][sS][vV][oO][iI][dD] {
+    return new Symbol(TokenConstants.ISVOID);
+}
+
+<YYINITIAL>[lL][eE][tT] {
+    return new Symbol(TokenConstants.LET);
+}
+
+<YYINITIAL>[lL][oO][oO][pP] {
+    return new Symbol(TokenConstants.LOOP);
+}
+
+<YYINITIAL>[pP][oO][oO][lL] {
+    return new Symbol(TokenConstants.POOL);
+}
+
+<YYINITIAL>[tT][hH][eE][nN] {
+    return new Symbol(TokenConstants.THEN);
+}
+
+<YYINITIAL>[wW][hH][iI][lL][eE] {
+    return new Symbol(TokenConstants.WHILE);
+}
+
+<YYINITIAL>[cC][aA][sS][eE] {
+    return new Symbol(TokenConstants.CASE);
+}
+
+<YYINITIAL>[eE][sS][aA][cC] {
+    return new Symbol(TokenConstants.ESAC);
+}
+
+<YYINITIAL>[nN][eE][wW] {
+    return new Symbol(TokenConstants.NEW);
+}
+
+<YYINITIAL>[oO][fF] {
+    return new Symbol(TokenConstants.OF);
+}
+
+<YYINITIAL>[nN][oO][tT] {
+    return new Symbol(TokenConstants.NOT);
+}
+
+<YYINITIAL>":" {
     return new Symbol(TokenConstants.COLON);
 }
 
-<CLASS,EXPR_BLOCK>";" {
+<YYINITIAL>";" {
     return new Symbol(TokenConstants.SEMI);
 }
 
-<CLASS_DEC>"{" {
-    transition(CLASS);
-    nesting.push(new NestedState("{", yy_lexical_state));
+<YYINITIAL>"{" {
+    nesting.push("{");
     return new Symbol(TokenConstants.LBRACE);
 }
 
-<CLASS_DEC,CLASS,FUNCTION_PARAMETERS>{\TYPEID} {
+<YYINITIAL>{\TYPEID} {
     return new Symbol(TokenConstants.TYPEID,
                       AbstractTable.idtable.addString(yytext()));
 }
 
-<FUNCTION,EXPR_BLOCK>"." {
+<YYINITIAL>"." {
     return new Symbol(TokenConstants.DOT);
 }
 
-<CLASS>"(" {
-    transition(FUNCTION_PARAMETERS);
-    nesting.push(new NestedState("(", yy_lexical_state));
+<YYINITIAL>"(" {
+    nesting.push("(");
     return new Symbol(TokenConstants.LPAREN);
 }
 
-"(" {
-    nesting.push(new NestedState("(", yy_lexical_state));
-    return new Symbol(TokenConstants.LPAREN);
-}
-
-<FUNCTION_PARAMETERS>")" {
-    if ("(".equals(nesting.pop().prefix)) {
-        transition(nesting.peek().state);
+<YYINITIAL>")" {
+    if (nesting.size() != 0 && "(".equals(nesting.pop())) {
         return new Symbol(TokenConstants.RPAREN);
     }
+
+    return new Symbol(TokenConstants.ERROR, "Unmatched ')'");
 }
 
-<CLASS,FUNCTION_PARAMETERS,FUNCTION,EXPR_BLOCK>{\OBJECTID} {
+<YYINITIAL>{\OBJECTID} {
     return new Symbol(TokenConstants.OBJECTID,
                       AbstractTable.idtable.addString(yytext()));
 }
 
-<CLASS>"{" {
-    transition(FUNCTION);
-    nesting.push(new NestedState("{", yy_lexical_state));
+<YYINITIAL>"{" {
+    nesting.push("{");
     return new Symbol(TokenConstants.LBRACE);
 }
 
-<FUNCTION>"{" {
-    transition(EXPR_BLOCK);
-    nesting.push(new NestedState("{", yy_lexical_state));
-    return new Symbol(TokenConstants.LBRACE);
-}
-
-"{" {
-    nesting.push(new NestedState("{", yy_lexical_state));
-    return new Symbol(TokenConstants.LBRACE);
-}
-
-")" {
-    if (!"(".equals(nesting.pop().prefix) || nesting.peek() == null) {
-        return new Symbol(TokenConstants.ERROR, "Unmatched ')'");
+<YYINITIAL>"}" {
+    if (nesting.size() != 0 && "{".equals(nesting.pop())) {
+        return new Symbol(TokenConstants.RBRACE);
     }
-
-    transition(nesting.peek().state);
-    return new Symbol(TokenConstants.RPAREN);
+    return new Symbol(TokenConstants.ERROR, "Unmatched '}'");
 }
 
-"}" {
-    if (!"{".equals(nesting.pop().prefix) || nesting.peek() == null) {
-        return new Symbol(TokenConstants.ERROR, "Unmatched '}'");
-    }
-
-    transition(nesting.peek().state);
-    return new Symbol(TokenConstants.RBRACE);
+<YYINITIAL>"=>" {
+    return new Symbol(TokenConstants.DARROW);
 }
 
-<STRING> \" {
+<STRING>"\"" {
     // End of string
-    if (!"\"".equals(nesting.pop().prefix) || nesting.peek() == null) {
-        return new Symbol(TokenConstants.ERROR, "Unmatched '\"'");
-    }
-    
-    if (sb.length() >= MAX_STR_CONST) {
-        return new Symbol(TokenConstants.ERROR, "String constant too long");
+    if ("\"".equals(nesting.pop())) {
+        if (sb.length() < MAX_STR_CONST) {
+            AbstractSymbol string = AbstractTable.idtable.addString(sb.toString());
+            sb.setLength(0);
+            transition(YYINITIAL);
+            return new Symbol(TokenConstants.STR_CONST, string);
+        }
+        else {
+            return new Symbol(TokenConstants.ERROR, "String constant too long");
+        }
     }
 
-    transition(nesting.peek().state);
-    AbstractSymbol string = AbstractTable.idtable.addString(sb.toString());
-    sb.setLength(0);
-    return new Symbol(TokenConstants.STR_CONST, string);
+    return new Symbol(TokenConstants.ERROR, "Unmatched '\"'");
+}
+
+<STRING>\\[btnf] {
+    switch (yytext().charAt(1)) {
+        case 'b':
+            sb.append("\b");
+            break;
+        case 't':
+            sb.append("\t");
+            break;
+        case 'n':
+            sb.append("\n");
+            break;
+        case 'f':
+            sb.append("\f");
+            break;
+        default:
+            return new Symbol(TokenConstants.ERROR,
+                              "Somehow matched against " + yytext());
+    }
+}
+
+<STRING>\\. {
+    sb.append(yytext().charAt(1));
 }
 
 <STRING>\0 {
@@ -277,41 +318,49 @@ f[aA][lL][sS][eE] {
     sb.append(yytext());
 }
 
-\" {
+<YYINITIAL>"\"" {
     transition(STRING);
-    nesting.push(new NestedState("\"", yy_lexical_state));
+    nesting.push("\"");
 }
 
-<EXPR_BLOCK>"<-" {
+<YYINITIAL>"<-" {
     return new Symbol(TokenConstants.ASSIGN);
 }
 
-[0-9]+ {
+<YYINITIAL>[0-9]+ {
     return new Symbol(TokenConstants.INT_CONST,
                       AbstractTable.inttable.addString(yytext()));
 }
 
-"," {
+<YYINITIAL>"," {
     return new Symbol(TokenConstants.COMMA);
 }
 
-"=" {
+<YYINITIAL>"=" {
     return new Symbol(TokenConstants.EQ);
 }
 
-"-" {
+<YYINITIAL>"<" {
+    return new Symbol(TokenConstants.LT);
+}
+
+<YYINITIAL>"<=" {
+    return new Symbol(TokenConstants.LE);
+}
+
+<YYINITIAL>"-" {
     return new Symbol(TokenConstants.MINUS);
 }
 
-"+" {
+<YYINITIAL>"+" {
     return new Symbol(TokenConstants.PLUS);
 }
 
-"*" {
+<YYINITIAL>"*" {
     return new Symbol(TokenConstants.MULT);
 }
 
-"/" {
+<YYINITIAL>"/" {
     return new Symbol(TokenConstants.DIV);
 }
 
