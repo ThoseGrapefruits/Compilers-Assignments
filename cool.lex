@@ -24,12 +24,13 @@ class Yytoken {
 
 %state COMMENT
 %state STRING
+%state STRING_ERROR
 
 %char  /* int yychar; */
 %line  /* int yyline; */
 
 \w = [a-zA-Z0-9_]
-\s = [ \n\f\r\t\v]
+\s = [ \n\f\r\t\v\013]
 \OBJECTID = [a-z]{\w}*
 \TYPEID = [A-Z]{\w}*
 \FORMAL = \ID{\s}+:{\s}+{\TYPE}
@@ -50,8 +51,14 @@ class Yytoken {
     // Serves as a stack of braces, parentheses, etc.
     Deque<String> nesting = new ArrayDeque<>();
 
+    String string_error = null;
+
+    int lineno_shift = 0;
+
     int get_curr_lineno() {
-	return yyline + 1;
+        int lineno = yyline + 1 + lineno_shift;
+        lineno_shift = 0;
+	return lineno;
     }
 
     private AbstractSymbol filename;
@@ -82,8 +89,9 @@ class Yytoken {
 %eofval{
 
     switch(yy_lexical_state) {
+        case STRING_ERROR:
         case YYINITIAL: // Expected
-            return new Symbol(TokenConstants.EOF);
+            break;
         case COMMENT:
             transition(YYINITIAL);
             return new Symbol(TokenConstants.ERROR, "EOF in comment");
@@ -92,9 +100,9 @@ class Yytoken {
             return new Symbol(TokenConstants.ERROR, "EOF in String");
         default: // If in any other state, then something was left unclosed
             transition(YYINITIAL);
-            return new Symbol(TokenConstants.ERROR,
-                    String.format("EOF in state %d.", yy_lexical_state));
+            return new Symbol(TokenConstants.ERROR, "EOF in non-initial state");
     }
+    return new Symbol(TokenConstants.EOF);
 
 %eofval}
 
@@ -106,10 +114,6 @@ class Yytoken {
 <YYINITIAL,COMMENT>"(*" {
     transition(COMMENT);
     nesting.push("(*");
-}
-
-\0 {
-    return new Symbol(TokenConstants.ERROR, "\000");
 }
 
 <COMMENT>"*)" {
@@ -124,14 +128,21 @@ class Yytoken {
     }
 }
 
-"*)" {
+<YYINITIAL>"*)" {
     return new Symbol(TokenConstants.ERROR, "Unmatched *)");
+}
+
+<YYINITIAL>\\ {
+    return new Symbol(TokenConstants.ERROR, "\\");
 }
 
 <COMMENT>[^] {
     // Ignore anything in a comment
 }
 
+<YYINITIAL>\-\-.* {
+    // Inline comment
+}
 
 <YYINITIAL>[cC][lL][aA][sS][sS] {
     return new Symbol(TokenConstants.CLASS);
@@ -232,16 +243,11 @@ class Yytoken {
 }
 
 <YYINITIAL>"(" {
-    nesting.push("(");
     return new Symbol(TokenConstants.LPAREN);
 }
 
 <YYINITIAL>")" {
-    if (nesting.size() != 0 && "(".equals(nesting.pop())) {
-        return new Symbol(TokenConstants.RPAREN);
-    }
-
-    return new Symbol(TokenConstants.ERROR, "Unmatched ')'");
+    return new Symbol(TokenConstants.RPAREN);
 }
 
 <YYINITIAL>{\OBJECTID} {
@@ -267,12 +273,14 @@ class Yytoken {
 
 <STRING>"\"" {
     // End of string
+
     if ("\"".equals(nesting.pop())) {
-        if (sb.length() < MAX_STR_CONST) {
-            AbstractSymbol string = AbstractTable.idtable.addString(sb.toString());
-            sb.setLength(0);
-            transition(YYINITIAL);
-            return new Symbol(TokenConstants.STR_CONST, string);
+        String string = sb.toString();
+        transition(YYINITIAL);
+
+        if (string.length() < MAX_STR_CONST) {
+            AbstractSymbol symbol = AbstractTable.idtable.addString(string);
+            return new Symbol(TokenConstants.STR_CONST, symbol);
         }
         else {
             return new Symbol(TokenConstants.ERROR, "String constant too long");
@@ -280,6 +288,10 @@ class Yytoken {
     }
 
     return new Symbol(TokenConstants.ERROR, "Unmatched '\"'");
+}
+
+<STRING>\\\n {
+    sb.append("\n");
 }
 
 <STRING>\\[btnf] {
@@ -302,25 +314,57 @@ class Yytoken {
     }
 }
 
+<STRING>\\\\ {
+    sb.append("\\");
+}
+
+<STRING>\\\0 {
+    transition(STRING_ERROR);
+    return new Symbol(TokenConstants.ERROR, "String contains escaped null character.");
+}
+
+<STRING>\0 {
+    transition(STRING_ERROR);
+    return new Symbol(TokenConstants.ERROR, "String contains null character.");
+}
+
+<STRING_ERROR>\n|\" {
+    transition(YYINITIAL);
+}
+
+<STRING_ERROR>. {
+}
+
 <STRING>\\. {
     sb.append(yytext().charAt(1));
 }
 
-<STRING>\0 {
-    return new Symbol(TokenConstants.ERROR, "String contains null character");
+<STRING>\n {
+    transition(YYINITIAL);
+    lineno_shift = 1;
+    return new Symbol(TokenConstants.ERROR, "Unterminated string constant");
 }
 
-<STRING>\n {
-    return new Symbol(TokenConstants.ERROR, "Unterminated string constant");
+<STRING>\015 {
+    sb.append('\015');
+}
+
+<STRING>\033 {
+    sb.append('\033');
 }
 
 <STRING>. {
     sb.append(yytext());
 }
 
+\0 {
+    return new Symbol(TokenConstants.ERROR, "\000");
+}
+
 <YYINITIAL>"\"" {
     transition(STRING);
     nesting.push("\"");
+    sb.setLength(0);
 }
 
 <YYINITIAL>"<-" {
@@ -330,6 +374,14 @@ class Yytoken {
 <YYINITIAL>[0-9]+ {
     return new Symbol(TokenConstants.INT_CONST,
                       AbstractTable.inttable.addString(yytext()));
+}
+
+<YYINITIAL>"~" {
+    return new Symbol(TokenConstants.NEG);
+}
+
+<YYINITIAL>"@" {
+    return new Symbol(TokenConstants.AT);
 }
 
 <YYINITIAL>"," {
@@ -369,6 +421,5 @@ class Yytoken {
 }
 
 . { 
-    // Anything unmatched
-    System.err.printf("UNMATCHED: %s (State %d)\n", yytext(), yy_lexical_state);
+    return new Symbol(TokenConstants.ERROR, yytext());
 }
